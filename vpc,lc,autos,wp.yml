@@ -1,0 +1,232 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'create a vpc'
+Parameters:
+  keyname:
+    Description: key name
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: 22  
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: ibex-vpc
+  subnetpub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref myVPC
+      CidrBlock: 10.10.1.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pub1
+  subnetNamepub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref myVPC
+      CidrBlock: 10.10.2.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pub2
+  subnetNamepri1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref myVPC
+      CidrBlock: 10.10.3.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pri1
+  subnetNamepri2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref myVPC
+      CidrBlock: 10.10.4.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pri2
+  routeTableName1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: ibex-pub-routeSecurityGroupsIds
+  routeTableName2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: ibex-pri-routeSecurityGroupsIds
+  routeTableAssocName1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetpub1
+      RouteTableId: !Ref routeTableName1
+  routeTableAssocName2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetNamepub2
+      RouteTableId: !Ref routeTableName1
+  routeTableAssocName3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetNamepri1
+      RouteTableId: !Ref routeTableName2
+  routeTableAssocName4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetNamepri2
+      RouteTableId: !Ref routeTableName2
+  igwName:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ibex-igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref igwName
+  routeName1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTableName1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igwName
+  eipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  LogicalId:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt eipName.AllocationId
+      SubnetId: !Ref subnetpub1
+      Tags:
+        - Key: Name
+          Value: ibex-eip
+  routeName2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTableName2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref LogicalId
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId: !Ref myVPC        
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIpv6: ::/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIpv6: ::/0
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIpv6: ::/0
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIpv6: ::/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+  launchConfigName:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: nnuu
+      AssociatePublicIpAddress: "true"
+      ImageId: ami-00eb20669e0990cb4
+      InstanceMonitoring: "false"
+      InstanceType: t2.micro
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvda"
+        Ebs:
+          VolumeSize: '8'
+      KeyName: !Ref keyname
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sudo su -
+          yum install httpd -y
+          service httpd start
+          yum install php php-mysql -y
+          service httpd restart
+          cd /var/www/html
+          echo "<?php phpinfo(); ?>" > /var/www/html/phpinfo.php
+          rm /var/www/html/phpinfo.php
+          yum install mysql-server -y
+          service mysqld start
+          mysqladmin -u root create db
+          mysqladmin --user=root password "12345678"
+          cd /var/www/html
+          wget https://wordpress.org/wordpress-5.1.1.tar.gz
+          tar -xvf wordpress-5.1.1.tar.gz
+          cd wordpress
+          mv wp-config-sample.php wp-config.php
+          ex -s -c '%s/database_name_here/db/g|x' wp-config.php
+          ex -s -c '%s/localhost/localhost/g|x' wp-config.php
+          ex -s -c '%s/username_here/root/g|x' wp-config.php
+          ex -s -c '%s/password_here/12345678/g|x' wp-config.php
+          mv /var/www/html/wordpress/* /var/www/html
+  autoscale:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      AutoScalingGroupName: test
+      
+      DesiredCapacity: 2
+      LaunchConfigurationName: !Ref launchConfigName
+      AvailabilityZones:
+        - us-east-1a
+        - us-east-1b
+      MaxSize: 4
+      MinSize: 2
+      VPCZoneIdentifier:
+        - Ref: subnetpub1
+        - Ref: subnetNamepub2
