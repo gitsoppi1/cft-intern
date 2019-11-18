@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  sampleApplication:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      Description: AWS Elastic Beanstalk Sample Application
+  sampleApplicationVersion:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Application Version
+      SourceBundle:
+        S3Bucket: gongu123
+        S3Key: wordpress.zip 
+  sampleConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Configuration Template
+      OptionSettings:
+      - Namespace: aws:autoscaling:asg
+        OptionName: MinSize
+        Value: '2'
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: EC2KeyName
+        Value: 'test'
+      - Namespace: aws:ec2:vpc
+        OptionName: VPCId
+        Value: 'vpc-00aa4c36e94576968'
+      - Namespace: aws:ec2:vpc
+        OptionName: Subnets
+        Value: 'subnet-0ba30b36a3e59aac8,subnet-0bc235676c4df5aa4'
+      - Namespace: aws:autoscaling:asg
+        OptionName: MaxSize
+        Value: '4'
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: EnvironmentType
+        Value: LoadBalanced
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: IamInstanceProfile
+        Value: aws-elasticbeanstalk-ec2-role
+      SolutionStackName: 64bit Amazon Linux 2018.03 v2.9.0 running PHP 7.3
+  sampleEnvironment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Environment
+      TemplateName:
+        Ref: sampleConfigurationTemplate
+      VersionLabel:
+        Ref: sampleApplicationVersion

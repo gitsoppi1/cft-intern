@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: vpc
+Metadata:
+ Authors:
+   Description: creating vpc
+Parameters:
+ vpccidr:
+   Description: plz enter the CIDR range
+   Type: String
+   Default: 10.0.0.0/16
+ vpcsub1:
+   Description: plz enter subnet range
+   Type: String
+   Default: 10.0.1.0/24
+ vpcsub2:
+   Description: plz enter subnet range
+   Type: String
+   Default: 10.0.2.0/24
+ vpcsub3:
+   Description: plz enter subnet range
+   Type: String
+   Default: 10.0.3.0/24
+ vpcsub4:
+   Description: plz enter subnet range
+   Type: String
+   Default: 10.0.4.0/24
+Resources:
+ myVPC:
+   Type: AWS::EC2::VPC
+   Properties:
+     CidrBlock: !Ref vpccidr
+     EnableDnsSupport: true
+     Tags:
+       - Key: name
+         Value: swapna-vpc
+ igwName:
+   Type: AWS::EC2::InternetGateway
+   Properties:
+     Tags:
+       - Key: name
+         Value: swapna-vpc
+ AttachGateway:
+   Type: AWS::EC2::VPCGatewayAttachment
+   Properties:
+     VpcId: !Ref myVPC
+     InternetGatewayId: !Ref igwName
+ publicsubnet1:
+   Type: AWS::EC2::Subnet
+   Properties:
+     AvailabilityZone: ap-south-1a
+     VpcId: !Ref myVPC
+     CidrBlock: !Ref vpcsub1
+     Tags:
+       - Key: name
+         Value: swapna-pub1
+ publicsubnet2:
+   Type: AWS::EC2::Subnet
+   Properties:
+     AvailabilityZone: ap-south-1b
+     VpcId: !Ref myVPC
+     CidrBlock: !Ref vpcsub2
+     Tags:
+       - Key: name
+         Value: swapna-pub2
+ publicsubnet3:
+   Type: AWS::EC2::Subnet
+   Properties:
+     AvailabilityZone: ap-south-1a
+     VpcId: !Ref myVPC
+     CidrBlock: !Ref vpcsub3
+     Tags:
+       - Key: name
+         Value: swapna-private1
+ publicsubnet4:
+   Type: AWS::EC2::Subnet
+   Properties:
+     AvailabilityZone: ap-south-1b
+     VpcId: !Ref myVPC
+     CidrBlock: !Ref vpcsub4
+     Tags:
+       - Key: name
+         Value: swapna-private2
+ eipName:
+   Type: AWS::EC2::EIP
+   Properties:
+     Domain: vpc
+ ngtName:
+   Type: AWS::EC2::NatGateway
+   Properties:
+     AllocationId: !GetAtt eipName.AllocationId
+     SubnetId: !Ref  publicsubnet1
+ routeTableNamepublic:
+   Type: AWS::EC2::RouteTable
+   Properties:
+     VpcId: !Ref myVPC
+     Tags:
+       - Key: name
+         Value: swapna-pub
+ routeTableNameprivate:
+   Type: AWS::EC2::RouteTable
+   Properties:
+     VpcId: !Ref myVPC
+     Tags:
+       - Key: name
+         Value: swapna-private
+ routeTableAssocName1:
+   Type: AWS::EC2::SubnetRouteTableAssociation
+   Properties:
+     SubnetId: !Ref publicsubnet1
+     RouteTableId: !Ref routeTableNamepublic
+ routeTableAssocName2:
+   Type: AWS::EC2::SubnetRouteTableAssociation
+   Properties:
+     SubnetId: !Ref publicsubnet2
+     RouteTableId: !Ref routeTableNamepublic
+ routeTableAssocName3:
+   Type: AWS::EC2::SubnetRouteTableAssociation
+   Properties:
+     SubnetId: !Ref publicsubnet3
+     RouteTableId: !Ref routeTableNameprivate
+ routeTableAssocName4:
+   Type: AWS::EC2::SubnetRouteTableAssociation
+   Properties:
+     SubnetId: !Ref publicsubnet4
+     RouteTableId: !Ref routeTableNameprivate
+ routeName1:
+   Type: AWS::EC2::Route
+   Properties:
+     RouteTableId: !Ref routeTableNamepublic
+     DestinationCidrBlock: 0.0.0.0/0
+     GatewayId: !Ref igwName
+ routeName2:
+   Type: AWS::EC2::Route
+   Properties:
+     RouteTableId: !Ref routeTableNameprivate
+     DestinationCidrBlock: 0.0.0.0/0
+     NatGatewayId: !Ref ngtName

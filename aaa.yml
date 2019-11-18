@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: creating ec2 instance
+Metadata:
+  Authors:
+    Description: IBEXlabs
+Parameters:
+  vpcid:
+    Description: select vpc
+    Type: String
+    Default: vpc-00aa4c36e94576968
+  keyname:
+    Description: plz enter key name
+    Type: String
+  subnets:
+    Description: plz select the subnets
+    Type: List<AWS::EC2::Subnet::Id>
+Resources:
+  securitygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: creating in bound and out bound rules
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: name
+          Value: swapna-security
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref keyname
+      DisableApiTermination: false
+      ImageId: ami-040c7ad0a93be494e
+      InstanceType: t2.micro
+      SecurityGroupIds: 
+        - !Ref securitygroup
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        yum install httpd -y
+        systemctl start httpd
+        systemctl enable httpd
+        wget https://wordpress.org/wordpress-5.1.1.zip
+        unzip wordpress-5.1.1.zip

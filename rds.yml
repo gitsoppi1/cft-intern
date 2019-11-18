@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: creating rds
+Metadata:
+  Authors:
+    Description: RDS
+Resources:
+  rdsDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: db subnets
+      SubnetIds:
+        - subnet-0ba30b36a3e59aac8
+        - subnet-0bc235676c4df5aa4
+      Tags:
+        - Key: Name
+          Value: dbsubnets
+  MyDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: db.t2.micro
+      DBName: db
+      Engine: MySQL
+      EngineVersion: 5.7.22
+      MasterUserPassword: soppi12345
+      MasterUsername: swapna
+      AllocatedStorage: "100"
+      Iops: "1000"
+      DBSubnetGroupName: !Ref rdsDBSubnetGroup
+      DeleteAutomatedBackups: "true"
+      AvailabilityZone: ap-south-1a
+      VPCSecurityGroups:
+        - sg-0412594c55b834f03
+      Tags:
+        - Key: Name
+          Value: dbsubnetsqw

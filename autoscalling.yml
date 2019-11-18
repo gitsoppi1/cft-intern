@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: autoscalling
+Metadata:
+  Authors:
+    Description: creating autoscalling
+Parameters:
+  vpcid:
+    Description: select vpc
+    Type: String
+    Default: vpc-00aa4c36e94576968
+  keyname:
+    Description: plz enter key name
+    Type: String
+Resources:
+  securitygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: creating in bound and out bound rules
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: name
+          Value: swapna-security
+  launchConfigName:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: swapna
+      AssociatePublicIpAddress: true
+      ImageId: ami-040c7ad0a93be494e
+      InstanceMonitoring: false
+      InstanceType: t2.micro
+      KeyName: !Ref keyname
+      SecurityGroups:
+        - !Ref securitygroup
+      UserData: !Base64 |
+        #!/bin/bash
+        sudo su -
+        yum install httpd -y
+        service httpd start
+        service httpd enable
+  autoscalling:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      AutoScalingGroupName: soppi
+      LaunchConfigurationName: !Ref launchConfigName
+      AvailabilityZones:
+        - ap-south-1a
+        - ap-south-1b
+      DesiredCapacity: 1
+      HealthCheckGracePeriod: 300
+      MaxSize: 3
+      MinSize: 1
+      TerminationPolicies:
+      - OldestInstance
+  scallingout:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoscalling
+      Cooldown: 60
+      ScalingAdjustment: 1
+  scallingin:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoscalling
+      Cooldown: 60
+      ScalingAdjustment: -1
+  cpualarmhigh:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmActions:
+        - !Ref scallingout
+      AlarmDescription: alaram for cpu utilization
+      AlarmName: autoscalling alaram
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: auto scalling group name
+          Value: !Ref autoscalling
+      EvaluationPeriods: 1
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 120
+      Statistic: Average
+      Threshold: 90
+  cpualarmlow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: 2
+      Statistic: Average
+      Threshold: 40
+      AlarmDescription: Alarm if CPU too low or metric disappears indicating instance is down
+      Period: '120'
+      MetricName: CPUUtilization
+      AlarmActions:
+        - !Ref scallingin
+      Namespace: AWS/EC2
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref autoscalling

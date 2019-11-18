@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: creating elastic beanstack
+Resources: 
+  application:
+    Type: "AWS::ElasticBeanstalk::Application"
+    Properties:
+      ApplicationName: application
+      Description: creating application
+  Environment:
+    Type: "AWS::ElasticBeanstalk::Environment"
+    Properties:
+      ApplicationName: !Ref application
+      CNAMEPrefix: Temp
+      Description: creating environment
+      EnvironmentName: Environment
+      SolutionStackName: 64bit Amazon Linux 2018.03 v2.9.0 running PHP 7.3
+      Tags:
+        - Key: name
+          Value: swapna-env
