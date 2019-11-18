@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: LAUNCHING EC2 INSTANCE
+Resources:
+  myec2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: ami-00bf61217e296b409 
+      InstanceType: t2.micro
+      KeyName: aws-eb
+      SecurityGroupIds: 
+        - sg-05e578a7fc50e6d50
+    
+  
+         
+
+   
+
+
+
+
+  

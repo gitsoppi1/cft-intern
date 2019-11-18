@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: LAUNCHING EC2 INSTANCE
+Metadata:
+  Author:
+    Description: ec2
+Parameters:
+ KeyName:
+    Description: plz enter the key name
+    Type: String
+Resources:
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      DisableApiTermination: Yes
+      ImageId: ami-00bf61217e296b409
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - sg-0412594c55b834f03
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: name
+          Value: sneha-ec2
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        yum install httpd -y
+        systemctl start httpd
+        systemctl enable httpd

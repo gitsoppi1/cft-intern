@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'To  launch ec2 instance'
+Resources:
+  myec2instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      DisableApiTermination: true
+      ImageId:  ami-0c64dd618a49aeee8
+      InstanceType: t2.micro
+      KeyName: aws-eb
+      Monitoring: true
+      UserData: !Base64 |
+        #!/bin/bash
+        sudo su
+        yum install httpd -y
+        service httpd start
+        yum install php php-mysql -y
+        service httpd restart
+        cd /var/www/html
+        echo "<?php phpinfo() ?>" >> test.php
+        wget https://wordpress.org/wordpress-5.1.1.tar.gz
+        tar -xzvf wordpress-5.1.1.tar.gz
+        cd wordpress
+        mv wp-config-sample.php wp-config.php
+        ex -s -c '%s/database_name_here/mydb/g|x' wp-config.php
+        ex -s -c '%s/localhost/qr10zr49bohih7o.cpxhk7edwlhk.us-east-2.rds.amazonaws.com/g|x' wp-config.php
+        ex -s -c '%s/username_here/mydb/g|x' wp-config.php
+        ex -s -c '%s/password_here/sneha1111/g|x' wp-config.php
+        mv /var/www/html/wordpress/* /var/www/html

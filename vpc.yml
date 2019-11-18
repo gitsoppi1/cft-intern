@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: creating vpc
+Metadata: 
+  Authors:
+    Description: ibexlabs
+Resources: 
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.7.0.0/16
+      EnableDnsSupport: true
+      Tags:
+        - Key: name
+          Value: sneha-vpc
+  sub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref myVPC
+      CidrBlock: 10.7.1.0/24
+      Tags:
+        - Key: name
+          Value: sneha-vpc
+  sub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref myVPC
+      CidrBlock: 10.7.2.0/24
+      Tags:
+        - Key: name
+          Value: sneha-vpc
+  sub3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref myVPC
+      CidrBlock: 10.7.3.0/24
+      Tags:
+        - Key: name
+          Value: sneha-vpc
+  sub4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref myVPC
+      CidrBlock: 10.7.4.0/24
+      Tags:
+        - Key: name
+          Value: sneha-vpc
+  igwName:                                        
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: name
+          Value: sneha-igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref igwName
+  eipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  ngtname:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt eipName.AllocationId
+      SubnetId: !Ref sub1
+  routeTableNamepublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: name
+          Value: sneha-public-route
+  routeTableNameprivate:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: name
+          Value: sneha-private-route
+  routeTableAssocName1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub1
+      RouteTableId: !Ref routeTableNamepublic
+  routeTableAssocName2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub2
+      RouteTableId: !Ref routeTableNamepublic
+  routeTableAssocName3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub3
+      RouteTableId: !Ref routeTableNameprivate
+  routeTableAssocName4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref sub4
+      RouteTableId: !Ref routeTableNameprivate
+  routeigw:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTableNamepublic
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igwName
+  routengt:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTableNameprivate
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref ngtname
+  ScalingSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: String #required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref  myVPC
+  launchConfigName:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: tishi
+      AssociatePublicIpAddress: true
+      ImageId: ami-00dc79254d0461090 
+      EbsOptimized: true
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref ScalingSG
+  asg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: '20'
+      AvailabilityZones: !GetAZs 'us-east-1a'
+      LaunchConfigurationName: !Ref launchConfigName 
+      MaxSize: 2
+      MinSize: 1
+      Tags:
+        - Key: name
+          Value: sneha
+          PropagateAtLaunch: true 
+      VPCZoneIdentifier:
+        - !Ref sub1
+        - !Ref sub2          
+
+
+

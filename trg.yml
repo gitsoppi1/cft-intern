@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: creating ec2 instance
+Metadata:
+  Authors:
+    Description: IBEXlabs
+Parameters:
+  vpcid:
+    Description: select vpc
+    Type: String
+    Default: vpc-71a1571a
+  keyname:
+    Description: plz enter key name
+    Type: String
+  elbsubnets:
+    Description: plz select the subnets
+    Type: String
+    Default: subnet-5b617f33
+  elbsubnets2:
+    Description: plz select the subnets
+    Type: String
+    Default: subnet-51368a1d
+Resources:
+  securitygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: creating in bound and out bound rules
+      VpcId: !Ref vpcid
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: name
+          Value: sneha-security
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref keyname
+      DisableApiTermination: false
+      ImageId: ami-00bf61217e296b409
+      InstanceType: t2.micro
+      AvailabilityZone: us-east-2a
+      SecurityGroupIds:
+        - !Ref securitygroup
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        yum install httpd -y
+        systemctl start httpd
+        systemctl enable httpd
+  elb:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      IpAddressType: ipv4
+      Name: snehaelb
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref securitygroup
+      Subnets:
+        - !Ref elbsubnets
+        - !Ref elbsubnets2
+      Type: application
+  targetgroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 100
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol:  HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      Name: sneha
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref vpcid
+  listenershttpd:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref targetgroup
+      LoadBalancerArn: !Ref elb #required
+      Port: '80' #required
+      Protocol: "HTTP" #required 
