@@ -24,7 +24,7 @@ Parameters:
      - t2.small
      - t2.medium
   EC2KeyName:
-   Description: The EC2 Key Pair to use for the Atlas/WebAPI EC2 Instances.
+   Description: The EC2 Key Pair to use for the  EC2 Instances.
    Type: AWS::EC2::KeyPair::KeyName
   RollingUpdateEnabled:
    Type: String
