@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for ElasticBeanstalk
+Resources: 
+  AppName:
+    Type: "AWS::ElasticBeanstalk::Application"
+    Properties:
+      ApplicationName: Lllll
+      Description: My ApplicationName
+  EnvName:
+    Type: "AWS::ElasticBeanstalk::Environment"
+    Properties:
+      ApplicationName: !Ref AppName #required
+      CNAMEPrefix: Temp
+      Description: ElasticBeanstalk Template
+      EnvironmentName: EnvName
+      SolutionStackName: 64bit Amazon Linux 2018.03 v2.9.0 running PHP 7.3
+  SampleConfigurationTemplate:  
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName: !Ref AppName
+      Description: configuration template
+      OptionSettings:
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: EC2KeyName
+        Value: 22
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: ImageId
+        Value: ami-00eb20669e0990cb4
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: EnvironmentType
+        Value: LoadBalanced
+      - Namespace: aws:autoscaling:asg
+        OptionName: MinSize
+        Value: '2'
+      - Namespace: aws:autoscaling:asg
+        OptionName: MaxSize
+        Value: '6'

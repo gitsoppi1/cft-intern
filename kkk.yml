@@ -1,0 +1,415 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Sample Template LAMP_Single_Instance: Create a LAMP
+  stack using a single EC2 instance and a local MySQL database for storage. This template
+  demonstrates using the AWS CloudFormation bootstrap scripts to install the packages
+  and files necessary to deploy the Apache web server, PHP and MySQL at instance launch
+  time. **WARNING** This template creates an Amazon EC2 instance. You will be billed
+  for the AWS resources used if you create a stack from this template.'
+Parameters:
+  KeyName:
+    Description: key name
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: 22
+  DBName:
+    Default: MyDatabase
+    Description: MySQL database name
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBUser:
+    NoEcho: 'true'
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '41'
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBRootPassword:
+    NoEcho: 'true'
+    Description: Root password for MySQL
+    Type: String
+    MinLength: '1'
+    MaxLength: '41'
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: must contain only alphanumeric characters.
+  MultiAZDatabase:
+    Default: 'false'
+    Description: Create a Multi-AZ MySQL Amazon RDS database instance
+    Type: String
+    AllowedValues:
+    - 'true'
+    - 'false'
+    ConstraintDescription: must be either true or false.
+  DBAllocatedStorage:
+    Default: '5'
+    Description: The size of the database (Gb)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '1024'
+    ConstraintDescription: must be between 5 and 1024Gb.
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.10.0.0/16
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: ibex-vpc
+  subNamepub1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.1.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pub1
+  subNamepub2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.2.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pub2
+  subNamepri1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.3.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pri1
+  subNamepri2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1b
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.4.0/24
+      Tags:
+        - Key: Name
+          Value: ibex-pri2
+  routeTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ibex-pub-routeSecurityGroupsIds
+  routeTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: ibex-pri-routeSecurityGroupsIds
+  routeTableAssocName1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subNamepub1
+      RouteTableId: !Ref routeTable1
+  routeTableAssocName2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subNamepub2
+      RouteTableId: !Ref routeTable1
+  routeTableAssocName3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subNamepri1
+      RouteTableId: !Ref routeTable2
+  routeTableAssocName4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subNamepri2
+      RouteTableId: !Ref routeTable2
+  igwName:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ibex-igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref igwName
+  routeName1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igwName
+  MyeipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  MyNat:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt MyeipName.AllocationId
+      SubnetId: !Ref subNamepub1
+      Tags:
+        - Key: Name
+          Value: ibex-eip
+  routeName2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref routeTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref MyNat
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP to client host #required
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0    
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: 0.0.0.0/0
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0 
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: 0.0.0.0/0  
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: 
+      SecurityGroups: 
+      - !Ref InstanceSecurityGroup
+      Subnets: 
+      - !Ref subNamepub1
+      - !Ref subNamepub2
+  MyListeners:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - Type: "forward"
+          TargetGroupArn: !Ref MyTargetGroup
+      LoadBalancerArn: !Ref MyLoadBalancer
+      Port: 80
+      Protocol: HTTP
+  MyTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 20
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      Name: wp-target
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+  AutoScaling:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties: 
+      VPCZoneIdentifier: 
+       - !Ref subNamepub1
+      AutoScalingGroupName: Wordpress
+      AvailabilityZones:
+      - us-east-1a
+      Cooldown: 600
+      DesiredCapacity: 2
+      HealthCheckGracePeriod: 0
+      HealthCheckType: ELB
+      LaunchConfigurationName: !Ref LaunchConfig
+      MaxSize: 3 #required
+      MinSize: 2 #required
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          wordpress_install:
+          - install_cfn
+          - install_wordpress
+        install_cfn:
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              content:
+                Fn::Join:
+                - ''
+                - - "[main]\n"
+                  - stack=
+                  - Ref: AWS::StackId
+                  - "\n"
+                  - region=
+                  - Ref: AWS::Region
+                  - "\n"
+              mode: '000400'
+              owner: root
+              group: root
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content:
+                Fn::Join:
+                - ''
+                - - "[cfn-auto-reloader-hook]\n"
+                  - 'triggers=post.update
+
+'
+                  - 'path=Resources.LaunchConfig.Metadata.AWS::CloudFormation::Init
+
+'
+                  - 'action=/opt/aws/bin/cfn-init -v '
+                  - "         --stack "
+                  - Ref: AWS::StackName
+                  - "         --resource LaunchConfig "
+                  - "         --configsets wordpress_install "
+                  - "         --region "
+                  - Ref: AWS::Region
+                  - "\n"
+              mode: '000400'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                - "/etc/cfn/cfn-hup.conf"
+                - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+        install_wordpress:
+          packages:
+            yum:
+              php: [5.6.20]
+              php-mysql: []
+              mysql: []
+              httpd: []
+          sources:
+            "/var/www/html": http://wordpress.org/latest.tar.gz
+          files:
+            "/tmp/create-wp-config":
+              content:
+                Fn::Join:
+                - ''
+                - - "#!/bin/bash\n"
+                  - 'cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+
+'
+                  - sed -i "s/'database_name_here'/'
+                  - Ref: DBName
+                  - '''/g" wp-config.php
+
+'
+                  - sed -i "s/'username_here'/'
+                  - Ref: DBUser
+                  - '''/g" wp-config.php
+
+'
+                  - sed -i "s/'password_here'/'
+                  - Ref: DBPassword
+                  - '''/g" wp-config.php
+
+'
+                  - sed -i "s/'localhost'/'
+                  - Fn::GetAtt:
+                    - DBInstance
+                    - Endpoint.Address
+                  - '''/g" wp-config.php
+
+'
+              mode: '000500'
+              owner: root
+              group: root
+          commands:
+            01_configure_wordpress:
+              command: "/tmp/create-wp-config"
+              cwd: "/var/www/html/wordpress"
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+    Properties:
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType: t2.micro
+      SecurityGroups:
+      - Ref: InstanceSecurityGroup
+      KeyName:
+        Ref: KeyName
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "#!/bin/bash -xe\n"
+            - 'yum update -y aws-cfn-bootstrap
+
+'
+            - "/opt/aws/bin/cfn-init -v "
+            - "         --stack "
+            - Ref: AWS::StackName
+            - "         --resource LaunchConfig "
+            - "         --configsets wordpress_install "
+            - "         --region "
+            - Ref: AWS::Region
+            - "\n"
+            - "/opt/aws/bin/cfn-signal -e $? "
+            - "         --stack "
+            - Ref: AWS::StackName
+            - "         --resource WebServerGroup "
+            - "         --region "
+            - Ref: AWS::Region
+            - "\n"
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName:
+        Ref: DBName
+      Engine: MySQL
+      DBInstanceClass: db.t2.micro
+      MultiAZ:
+        Ref: MultiAZDatabase
+      MasterUsername:
+        Ref: DBUser
+      MasterUserPassword:
+        Ref: DBPassword
+      AllocatedStorage:
+        Ref: DBAllocatedStorage
+Outputs:
+  WebsiteURL:
+    Value:
+      Fn::Join:
+      - ''
+      - - http://
+        - Fn::GetAtt:
+          - MyLoadBalancer
+          - DNSName
+        - "/wordpress"
+    Description: WordPress Website

@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: template for ec2
+Parameters:
+  KeyPair:
+    Description: key name
+    Type: String
+    Default: "elastic beanstalk"
+Resources:
+  ec2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      AvailabilityZone: us-west-2a
+      ImageId: ami-08d489468314a58df
+      InstanceType: t2.micro
+      SecurityGroupIds: 
+        - sg-07f21a31af608a6db
+      KeyName: !Ref KeyPair
+      Tags:
+        - Key: Name
+          Value: cf_ec2
+ #vpc         
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: cf_vpc
+  cfpubsubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-west-2a
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.0.0/24
+      Tags:
+        - Key: name
+          Value: cf_pubsubnet1
+  cfpubsubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-west-2b
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: name
+          Value: cf_pubsubnet2
+  cfprisubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-west-2c
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.2.0/24
+      Tags:
+        - Key: name
+          Value: cf_prisubnet1
+  cfprisubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-west-2d
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.3.0/24
+      Tags:
+        - Key: name
+          Value: cf_prisubnet2
+  cfnatgateway:
+    Type: "AWS::EC2::NatGateway"
+    DependsOn : eipName
+    Properties:
+      AllocationId: !GetAtt eipName.AllocationId
+      SubnetId: !Ref cfpubsubnet1
+      Tags:
+        - Key: name
+          Value: cf_natgateway
+  eipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: myVPC
+#      InstanceId: !Ref ec2
+  cfigwName:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: name
+          Value: cf_igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref cfigwName
+  cfpubrouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: name
+          Value: cf_pubroutetable
+  cfprirouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: name
+          Value: cp_priroutetable
+  pubrouteTableAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref cfpubsubnet1
+      RouteTableId: !Ref cfpubrouteTable
+  pubrouteTableAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref cfpubsubnet2
+      RouteTableId: !Ref cfpubrouteTable
+  prirouteTableAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref cfprisubnet1
+      RouteTableId: !Ref cfprirouteTable
+  prirouteTableAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref cfprisubnet2
+      RouteTableId: !Ref cfprirouteTable
+  igwroute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref cfpubrouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:  !Ref cfigwName
+  natroute:
+    Type: AWS::EC2::Route
+    DependsOn: cfnatgateway
+    Properties: 
+      RouteTableId: !Ref cfprirouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref cfnatgateway
