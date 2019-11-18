@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A sample EC2 instance
+
+Resources: 
+  myInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: virginia
+      DisableApiTermination: false
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType: t2.micro
+      Monitoring: false
+      SecurityGroupIds:
+        - sg-5b7f7105
+      Tags:
+        - Key: Name
+          Value: Default

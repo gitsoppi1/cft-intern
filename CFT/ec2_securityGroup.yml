@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A sample EC2 instance
+
+Resources: 
+  securityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      #GroupName: custom_sg
+      GroupDescription: This is a custom security group that I am creating
+      VpcId: vpc-a92d6bd3
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: Custom
+  myInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: virginia
+      DisableApiTermination: false
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType: t2.micro
+      Monitoring: false
+      Tags:
+        - Key: Name
+          Value: Default
+      SecurityGroupIds:
+        - !Ref securityGroup
+
+
+

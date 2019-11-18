@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A sample Auto-scaling CFT 
+
+#Metadata: 
+
+#Parameters: 
+
+
+
+Resources:
+
+
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType: t2.micro
+      KeyName: virginia
+      LaunchConfigurationName: abc
+      SecurityGroups: 
+        - sg-5b7f7105
+      #UserData: 
+    
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: practice
+      AvailabilityZones: 
+        - us-east-1a
+        - us-east-1b
+        - us-east-1c
+      Cooldown: 300
+      DesiredCapacity: 3
+      HealthCheckGracePeriod: 0
+      LaunchConfigurationName: !Ref LaunchConfig
+      #LaunchTemplate: 
+       # LaunchTemplateSpecification
+      MaxSize: 5
+      MinSize: 2
+     
+  ScaleUp:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      #EstimatedInstanceWarmup: 300
+     # MetricAggregationType: String
+      #MinAdjustmentMagnitude: 1
+      PolicyType: SimpleScaling
+      ScalingAdjustment: 10
+
+  
+  ScaleDown:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      #EstimatedInstanceWarmup: 300
+      #MetricAggregationType: String
+      #MinAdjustmentMagnitude: -1
+      PolicyType: SimpleScaling
+      ScalingAdjustment: 10
+     
+    
+  
+  
+
+  

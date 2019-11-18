@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A sample EC2 instance
+
+Parameters: 
+  InstanceTypeParameter: 
+    Type: String
+    Default: t2.micro
+    AllowedValues: 
+      - t2.micro
+      - m1.small
+      - m1.large
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+   
+  subnet:
+    #Type: List<AWS::EC2::Subnet::Id>
+    Type: AWS::EC2::Subnet::Id
+
+    
+
+  securityGroup: 
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    
+
+
+Resources: 
+
+  myInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: virginia
+      DisableApiTermination: false
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType:
+          Ref: InstanceTypeParameter
+      Monitoring: false
+      SecurityGroupIds: !Ref securityGroup
+      SubnetId: !Ref subnet
+      
+      
+
+
+  
+
+
+
