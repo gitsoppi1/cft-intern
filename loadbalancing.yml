@@ -1,0 +1,163 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Master stack: Template for RDS'
+
+Parameters:
+  
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.12.0.0/16
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: dev_vpc
+  public1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC 
+      CidrBlock: 10.12.1.0/24
+      Tags:
+        - Key: Name
+          Value: public1
+  public2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.12.2.0/24
+      Tags:
+        - Key: Name
+          Value: public2
+  private1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.12.3.0/24
+      Tags:
+        - Key: Name
+          Value: private1
+  private2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.12.4.0/24
+      Tags:
+        - Key: Name
+          Value: private2
+  eipName:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: !Ref myVPC
+  nat:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt "eipName.AllocationId"
+      SubnetId: !Ref public1
+      Tags:
+        - Key: Name
+          Value: nat
+  igwName:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref igwName
+  publicrt:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: rtpub
+  privatert:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: rtpriv
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref public1
+      RouteTableId: !Ref publicrt
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref public2
+      RouteTableId: !Ref publicrt
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref private1
+      RouteTableId: !Ref privatert
+  routeTableAssocName:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref private2
+      RouteTableId: !Ref privatert
+  routeName:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref publicrt
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igwName
+  routeName:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref privatert
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref nat 
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: virgina 
+      ImageId: ami-00eb20669e0990cb4
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      SubnetId: !Ref private1
+      Tags:
+        - Key: Name
+          Value: cft
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Inbound and outbound rules
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0 
+  MyDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: db.m4.large
+      DBName: db
+      Engine: MySQL
+      EngineVersion: "5.7.22"
+      MasterUserPassword: 12345678
+      MasterUsername: user
+      AllocatedStorage: "100"
+      Iops: "1000"
+      DBSubnetGroupName: !Ref subnetgroup
+      DeleteAutomatedBackups: "true"
+      AvailabilityZone: us-east-1a
+      VPCSecurityGroups:
+        - Ref: "InstanceSecurityGroup"
+      Tags:
+        - Key: Name
+          Value: "My SQL Database"
+  
